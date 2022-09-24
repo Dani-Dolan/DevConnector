@@ -6,6 +6,9 @@ const jwt = require("jsonwebtoken");
 const keys = require("../../config/keys");
 const passport = require("passport");
 
+//Load Input validation 
+const validateRegisterInput = require('../../validation/register'); 
+
 // Load User model
 const User = require("../../models/User");
 
@@ -18,6 +21,11 @@ router.get("/test", (req, res) => res.json({ msg: "Users Works" }));
 // @desc    Register user
 // @access  Public
 router.post("/register", (req, res) => {
+    const {errors, isValid } = validateRegisterInput(req.body);
+    //check validation
+    if (!isValid){
+        return res.status(400).json(errors); 
+    }
   User.findOne({ email: req.body.email }).then((user) => {
     if (user) {
       errors.email = "Email already exists";
@@ -72,15 +80,38 @@ router.post("/login", (req, res) => {
 
         const payload = { id: user.id, name: user.name, avatar: user.avatar }; //Create JWT Payload
         //Sign token
-        jwt.sign(payload, keys.secretOrKey, { expiresIn: 3600 }, (err,token) => {
-res.json({
-    success:true, token: 'Bearer '+ token
-})
-        });
+        jwt.sign(
+          payload,
+          keys.secretOrKey,
+          { expiresIn: 3600 },
+          (err, token) => {
+            res.json({
+              success: true,
+              token: "Bearer " + token,
+            });
+          }
+        );
       } else {
         return res.status(400).json({ password: "Password incorrect" });
       }
     });
   });
 });
+
+// @route   POST api/users/current
+// @desc    Return current user
+// @access  Private
+
+router.get(
+  "/current",
+  passport.authenticate("jwt", { session: false }),
+  (req, res) => {
+    res.json({
+      id: req.user.id,
+      name: req.user.name,
+      email: req.user.email,
+    });
+  }
+);
+
 module.exports = router;
